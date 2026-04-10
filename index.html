@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Tracker</title>
+<style>
+body{font-family:Arial;margin:0;background:#f5f5f5}
+.container{padding:12px;max-width:500px;margin:auto;box-sizing:border-box}
+input,select,button{
+  width:100%;padding:14px;margin-top:10px;border-radius:12px;
+  border:1px solid #ccc;font-size:16px;box-sizing:border-box
+}
+button{background:black;color:white}
+.card{
+  background:white;padding:12px;border-radius:16px;margin-top:12px;
+  box-sizing:border-box;overflow-wrap:break-word;word-break:break-word
+}
+.actions{display:flex;gap:8px;margin-top:10px}
+.actions button{flex:1}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>Health Tracker</h2>
+
+<div class="card">
+<input id="sat" placeholder="SpO2">
+<input id="fc" placeholder="FC">
+<input id="temp" placeholder="Temperatura">
+
+<select id="sonoReparador">
+<option value="">Sono reparador?</option>
+<option value="sim">Sim</option>
+<option value="nao">Não</option>
+</select>
+
+<input id="escala" placeholder="Escala 0-10">
+
+<select id="urina">
+<option value="">Urina</option>
+<option>Transparente</option>
+<option>Amarelo claro</option>
+<option>Amarelo</option>
+<option>Amarelo escuro</option>
+<option>Âmbar</option>
+<option>Escuro</option>
+</select>
+
+<input id="peso" placeholder="Peso">
+<input type="time" id="dormiu">
+<input type="time" id="acordou">
+<input id="tempoSono" disabled placeholder="Sono">
+
+<button onclick="save()">Salvar</button>
+</div>
+
+<div id="list"></div>
+</div>
+
+<script>
+let editingIndex = null;
+
+function getData(){return JSON.parse(localStorage.getItem('data')||'[]')}
+function setData(d){localStorage.setItem('data',JSON.stringify(d))}
+
+function calcSleep(d,a){
+if(!d||!a)return ''
+let [h1,m1]=d.split(':').map(Number)
+let [h2,m2]=a.split(':').map(Number)
+let start=h1*60+m1
+let end=h2*60+m2
+if(end<start)end+=1440
+return ((end-start)/60).toFixed(1)
+}
+
+function save(){
+let data=getData()
+
+if(editingIndex !== null){
+  // atualizar sem mudar data
+  let original = data[editingIndex]
+  data[editingIndex] = {
+    ...original,
+    sat: sat.value || original.sat,
+    fc: fc.value || original.fc,
+    temp: temp.value || original.temp,
+    sonoReparador: sonoReparador.value || original.sonoReparador,
+    escala: escala.value || original.escala,
+    urina: urina.value || original.urina,
+    peso: peso.value || original.peso,
+    dormiu: dormiu.value || original.dormiu,
+    acordou: acordou.value || original.acordou,
+    tempoSono: calcSleep(dormiu.value,acordou.value) || original.tempoSono
+  }
+  editingIndex = null
+}else{
+  let entry={
+    key:new Date().toLocaleString(),
+    sat:sat.value,fc:fc.value,temp:temp.value,
+    sonoReparador:sonoReparador.value,
+    escala:escala.value,urina:urina.value,
+    peso:peso.value,dormiu:dormiu.value,
+    acordou:acordou.value,
+    tempoSono:calcSleep(dormiu.value,acordou.value)
+  }
+  data.unshift(entry)
+}
+
+setData(data)
+render()
+clearInputs()
+}
+
+function clearInputs(){
+ document.querySelectorAll('input,select').forEach(el=>{
+  if(el.id!=='tempoSono') el.value=''
+ })
+}
+
+function delItem(i){
+if(!confirm('Tem certeza que deseja deletar?'))return
+let d=getData()
+d.splice(i,1)
+setData(d)
+render()
+}
+
+function editItem(i){
+let e=getData()[i]
+editingIndex = i
+sat.value=e.sat||''
+fc.value=e.fc||''
+temp.value=e.temp||''
+sonoReparador.value=e.sonoReparador||''
+escala.value=e.escala||''
+urina.value=e.urina||''
+peso.value=e.peso||''
+dormiu.value=e.dormiu||''
+acordou.value=e.acordou||''
+tempoSono.value=e.tempoSono||''
+}
+
+function render(){
+let d=getData()
+list.innerHTML=''
+
+d.forEach((e,i)=>{
+list.innerHTML+=`
+<div class="card">
+<b>${e.key}</b><br>
+SpO2: ${e.sat||'-'}<br>
+FC: ${e.fc||'-'}<br>
+Temp: ${e.temp||'-'}<br>
+Sono reparador: ${e.sonoReparador||'-'}<br>
+Escala: ${e.escala||'-'}<br>
+Urina: ${e.urina||'-'}<br>
+Peso: ${e.peso||'-'}<br>
+Dormiu: ${e.dormiu||'-'}<br>
+Acordou: ${e.acordou||'-'}<br>
+Sono total: ${e.tempoSono||'-'}h
+<div class="actions">
+<button onclick="editItem(${i})">Editar</button>
+<button onclick="delItem(${i})">Deletar</button>
+</div>
+</div>`
+})
+}
+
+[dormiu,acordou].forEach(el=>{
+el.addEventListener('change',()=>{
+tempoSono.value=calcSleep(dormiu.value,acordou.value)
+})
+})
+
+render()
+</script>
+</body>
+</html>
