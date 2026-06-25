@@ -3,177 +3,264 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Health Tracker</title>
+<title>Contador de Resistência</title>
+
 <style>
-body{font-family:Arial;margin:0;background:#f5f5f5}
-.container{padding:12px;max-width:500px;margin:auto;box-sizing:border-box}
-input,select,button{
-  width:100%;padding:14px;margin-top:10px;border-radius:12px;
-  border:1px solid #ccc;font-size:16px;box-sizing:border-box
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Inter,Arial,sans-serif;
 }
-button{background:black;color:white}
+
+body{
+    background:#0a0a0a;
+    color:#f5f5f5;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
 .card{
-  background:white;padding:12px;border-radius:16px;margin-top:12px;
-  box-sizing:border-box;overflow-wrap:break-word;word-break:break-word
+    width:100%;
+    max-width:450px;
+    background:#141414;
+    border:1px solid #222;
+    border-radius:24px;
+    padding:30px;
+    text-align:center;
 }
-.actions{display:flex;gap:8px;margin-top:10px}
-.actions button{flex:1}
+
+.days{
+    font-size:72px;
+    font-weight:800;
+}
+
+.label{
+    color:#888;
+    margin-bottom:25px;
+}
+
+.rank{
+    background:#1d1d1d;
+    border-radius:14px;
+    padding:15px;
+    margin-bottom:25px;
+    border:1px solid #2a2a2a;
+}
+
+.rank-title{
+    color:#c28b36;
+    font-size:18px;
+    font-weight:700;
+}
+
+.quote{
+    color:#9c9c9c;
+    margin-top:8px;
+    font-size:14px;
+}
+
+button{
+    width:100%;
+    border:none;
+    padding:16px;
+    border-radius:14px;
+    background:#c28b36;
+    color:black;
+    font-weight:800;
+    font-size:16px;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+.progress{
+    height:12px;
+    background:#222;
+    border-radius:999px;
+    margin:25px 0 15px;
+    overflow:hidden;
+}
+
+.bar{
+    height:100%;
+    width:0%;
+    background:#c28b36;
+}
+
+.stats{
+    display:flex;
+    gap:12px;
+}
+
+.box{
+    flex:1;
+    background:#1d1d1d;
+    border:1px solid #2a2a2a;
+    border-radius:12px;
+    padding:16px;
+}
+
+.number{
+    font-size:30px;
+    font-weight:800;
+    color:#c28b36;
+}
+
+.text{
+    margin-top:5px;
+    color:#8a8a8a;
+    font-size:13px;
+}
 </style>
 </head>
+
 <body>
-<div class="container">
-<h2>Health Tracker</h2>
 
 <div class="card">
-<input id="sat" placeholder="SpO2">
-<input id="fc" placeholder="FC">
-<input id="temp" placeholder="Temperatura">
 
-<select id="sonoReparador">
-<option value="">Sono reparador?</option>
-<option value="sim">Sim</option>
-<option value="nao">Não</option>
-</select>
+<div class="days" id="days">0</div>
+<div class="label">dias válidos</div>
 
-<input id="escala" placeholder="Escala 0-10">
-
-<select id="urina">
-<option value="">Urina</option>
-<option>Transparente</option>
-<option>Amarelo claro</option>
-<option>Amarelo</option>
-<option>Amarelo escuro</option>
-<option>Âmbar</option>
-<option>Escuro</option>
-</select>
-
-<input id="peso" placeholder="Peso">
-<input type="time" id="dormiu">
-<input type="time" id="acordou">
-<input id="tempoSono" disabled placeholder="Sono">
-
-<button onclick="save()">Salvar</button>
+<div class="rank">
+<div class="rank-title" id="title">Condenado</div>
+<div class="quote" id="quote">Todo começo parece promissor.</div>
 </div>
 
-<div id="list"></div>
+<button onclick="checkin()">CHECK-IN</button>
+
+<div class="progress">
+<div class="bar" id="bar"></div>
+</div>
+
+<div class="stats">
+<div class="box">
+<div class="number" id="checks">0</div>
+<div class="text">Hoje</div>
+</div>
+
+<div class="box">
+<div class="number" id="left">4</div>
+<div class="text">Faltam</div>
+</div>
+</div>
+
 </div>
 
 <script>
-let editingIndex = null;
 
-function getData(){return JSON.parse(localStorage.getItem('data')||'[]')}
-function setData(d){localStorage.setItem('data',JSON.stringify(d))}
+const GOAL = 4;
 
-function calcSleep(d,a){
-if(!d||!a)return ''
-let [h1,m1]=d.split(':').map(Number)
-let [h2,m2]=a.split(':').map(Number)
-let start=h1*60+m1
-let end=h2*60+m2
-if(end<start)end+=1440
-return ((end-start)/60).toFixed(1)
+/* 🔥 TITULOS POR SEMANA (5 meses ~ 20 semanas) */
+const WEEK_TITLES = [
+"Semana 1 — Queda inicial",
+"Semana 2 — Resistência fraca",
+"Semana 3 — Tentativa instável",
+"Semana 4 — Início de controle",
+"Semana 5 — Disciplina surgindo",
+"Semana 6 — Resistência real",
+"Semana 7 — Controle parcial",
+"Semana 8 — Estabilidade frágil",
+"Semana 9 — Mente dividida",
+"Semana 10 — Controle moderado",
+"Semana 11 — Força consistente",
+"Semana 12 — Autodomínio inicial",
+"Semana 13 — Evolução clara",
+"Semana 14 — Resistência sólida",
+"Semana 15 — Controle forte",
+"Semana 16 — Mente disciplinada",
+"Semana 17 — Domínio avançado",
+"Semana 18 — Quase estabilidade total",
+"Semana 19 — Forte consolidação",
+"Semana 20 — Estado de domínio"
+];
+
+/* INIT CACHE */
+if(!localStorage.getItem("days")) localStorage.setItem("days","0");
+if(!localStorage.getItem("checks")) localStorage.setItem("checks","0");
+if(!localStorage.getItem("done")) localStorage.setItem("done","false");
+if(!localStorage.getItem("lastDay")) localStorage.setItem("lastDay", new Date().toDateString());
+
+/* 🔥 RESET POR DIA */
+function resetDayIfNeeded(){
+
+let today = new Date().toDateString();
+let saved = localStorage.getItem("lastDay");
+
+if(today !== saved){
+    localStorage.setItem("checks","0");
+    localStorage.setItem("done","false");
+    localStorage.setItem("lastDay", today);
 }
 
-function save(){
-let data=getData()
-
-if(editingIndex !== null){
-  // atualizar sem mudar data
-  let original = data[editingIndex]
-  data[editingIndex] = {
-    ...original,
-    sat: sat.value || original.sat,
-    fc: fc.value || original.fc,
-    temp: temp.value || original.temp,
-    sonoReparador: sonoReparador.value || original.sonoReparador,
-    escala: escala.value || original.escala,
-    urina: urina.value || original.urina,
-    peso: peso.value || original.peso,
-    dormiu: dormiu.value || original.dormiu,
-    acordou: acordou.value || original.acordou,
-    tempoSono: calcSleep(dormiu.value,acordou.value) || original.tempoSono
-  }
-  editingIndex = null
-}else{
-  let entry={
-    key:new Date().toLocaleString(),
-    sat:sat.value,fc:fc.value,temp:temp.value,
-    sonoReparador:sonoReparador.value,
-    escala:escala.value,urina:urina.value,
-    peso:peso.value,dormiu:dormiu.value,
-    acordou:acordou.value,
-    tempoSono:calcSleep(dormiu.value,acordou.value)
-  }
-  data.unshift(entry)
 }
 
-setData(data)
-render()
-clearInputs()
+/* SEMANA BASEADA EM DIAS */
+function getWeekTitle(days){
+
+let week = Math.floor(days / 7);
+
+if(week >= WEEK_TITLES.length){
+    week = WEEK_TITLES.length - 1;
 }
 
-function clearInputs(){
- document.querySelectorAll('input,select').forEach(el=>{
-  if(el.id!=='tempoSono') el.value=''
- })
+return WEEK_TITLES[week];
 }
 
-function delItem(i){
-if(!confirm('Tem certeza que deseja deletar?'))return
-let d=getData()
-d.splice(i,1)
-setData(d)
-render()
+/* CHECK-IN */
+function checkin(){
+
+resetDayIfNeeded();
+
+let c = Number(localStorage.getItem("checks"));
+
+if(c >= GOAL) return;
+
+c++;
+localStorage.setItem("checks", c);
+
+/* +1 DIA AO COMPLETAR */
+if(c === GOAL && localStorage.getItem("done") !== "true"){
+
+    let d = Number(localStorage.getItem("days"));
+    localStorage.setItem("days", d + 1);
+    localStorage.setItem("done","true");
+
 }
 
-function editItem(i){
-let e=getData()[i]
-editingIndex = i
-sat.value=e.sat||''
-fc.value=e.fc||''
-temp.value=e.temp||''
-sonoReparador.value=e.sonoReparador||''
-escala.value=e.escala||''
-urina.value=e.urina||''
-peso.value=e.peso||''
-dormiu.value=e.dormiu||''
-acordou.value=e.acordou||''
-tempoSono.value=e.tempoSono||''
+update();
 }
 
-function render(){
-let d=getData()
-list.innerHTML=''
+/* UI */
+function update(){
 
-d.forEach((e,i)=>{
-list.innerHTML+=`
-<div class="card">
-<b>${e.key}</b><br>
-SpO2: ${e.sat||'-'}<br>
-FC: ${e.fc||'-'}<br>
-Temp: ${e.temp||'-'}<br>
-Sono reparador: ${e.sonoReparador||'-'}<br>
-Escala: ${e.escala||'-'}<br>
-Urina: ${e.urina||'-'}<br>
-Peso: ${e.peso||'-'}<br>
-Dormiu: ${e.dormiu||'-'}<br>
-Acordou: ${e.acordou||'-'}<br>
-Sono total: ${e.tempoSono||'-'}h
-<div class="actions">
-<button onclick="editItem(${i})">Editar</button>
-<button onclick="delItem(${i})">Deletar</button>
-</div>
-</div>`
-})
+resetDayIfNeeded();
+
+let d = Number(localStorage.getItem("days"));
+let c = Number(localStorage.getItem("checks"));
+
+document.getElementById("days").innerText = d;
+document.getElementById("checks").innerText = c;
+document.getElementById("left").innerText = Math.max(0, GOAL - c);
+
+/* 🔥 TITULO POR SEMANA */
+document.getElementById("title").innerText = getWeekTitle(d);
+
+document.getElementById("quote").innerText =
+(c >= GOAL)
+? "Dia concluído ✔"
+: "Continue...";
+
+document.getElementById("bar").style.width =
+(c / GOAL) * 100 + "%";
+
 }
 
-[dormiu,acordou].forEach(el=>{
-el.addEventListener('change',()=>{
-tempoSono.value=calcSleep(dormiu.value,acordou.value)
-})
-})
+update();
 
-render()
 </script>
+
 </body>
 </html>
